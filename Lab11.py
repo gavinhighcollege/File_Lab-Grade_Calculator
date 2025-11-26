@@ -12,7 +12,10 @@ def load_students():
             line = line.strip()
             if not line:
                 continue
-            name, sid = line.split(',')
+            parts = line.split(',')
+            if len(parts) != 2:
+                continue
+            name, sid = parts
             students[name] = sid
     return students
 
@@ -25,7 +28,10 @@ def load_assignments():
             line = line.strip()
             if not line:
                 continue
-            name, pts, aid = line.split(',')
+            parts = line.split(',')
+            if len(parts) != 3:
+                continue
+            name, pts, aid = parts
             assignments[name] = {
                 "points": int(pts),
                 "id": aid
