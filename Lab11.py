@@ -161,7 +161,9 @@ def option_assignment_stats(assignments, submissions):
         return
 
     print(f"Min: {round(min(scores))}%")
-    print(f"Avg: {round(sum(scores) / len(scores))}%")
+    avg = sum(scores) / len(scores)
+    avg_int = int(avg)  # floors toward zero
+    print(f"Avg: {avg_int}%")
     print(f"Max: {round(max(scores))}%")
 
 
