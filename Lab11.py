@@ -1,11 +1,14 @@
 import os
 import matplotlib.pyplot as plt
-from data import submissions
 
 DATA_DIR = "data"
 
 
 def load_students():
+    """
+    Loads student IDs and names from students.txt.
+    Assumes file lines are formatted as: [3-digit ID] [Name] (space separated).
+    """
     students = {}
     path = os.path.join(DATA_DIR, "students.txt")
     try:
@@ -15,12 +18,15 @@ def load_students():
                 if not line:
                     continue
 
-                # FIRST 3 chars = ID
-                sid = line[:3]
-                name = line[3:].strip()
+                # FIX 1: Use robust whitespace split to separate ID (first part) from Name (remaining parts).
+                parts = line.split()
 
-                if not name:
+                if len(parts) < 2:
                     continue
+
+                sid = parts[0].strip()
+                # Join the rest of the parts back together to form the full name
+                name = " ".join(parts[1:]).strip()
 
                 students[name] = sid
 
@@ -29,9 +35,11 @@ def load_students():
     return students
 
 
-
 def load_assignments():
-    """Loads assignment names, points, and IDs from assignments.txt (3 lines per assignment)."""
+    """
+    Loads assignment data from assignments.txt.
+    (Previous fix for 3-line-per-assignment structure is kept, as it resolved the "malformed line" warnings).
+    """
     assignments = {}
     path = os.path.join(DATA_DIR, "assignments.txt")
 
@@ -95,6 +103,7 @@ def load_submissions():
                 sid, aid, perc_str = parts
                 try:
                     submissions.append({
+                        # Ensure all IDs and percentage strings are clean
                         "student_id": sid.strip(),
                         "assignment_id": aid.strip(),
                         "percent": float(perc_str.strip())
@@ -109,7 +118,9 @@ def load_submissions():
 
 def option_student_grade(students, assignments, submissions):
     """Calculates and prints a student's final course grade."""
-    name = input("What is the student's name: ")
+    # FIX 2: Strip input name to ensure clean dictionary lookup
+    name = input("What is the student's name: ").strip()
+
     if name not in students:
         print("Student not found")
         return
@@ -125,6 +136,7 @@ def option_student_grade(students, assignments, submissions):
     }
 
     for sub in submissions:
+        # ID comparison must now work because sid and sub["student_id"] are both cleaned strings.
         if sub["student_id"] == sid:
             aid = sub["assignment_id"]
             if aid in assignment_points_lookup:
@@ -141,7 +153,9 @@ def option_student_grade(students, assignments, submissions):
 
 def option_assignment_stats(assignments, submissions):
     """Calculates and prints statistics (Min, Avg, Max) for an assignment."""
-    name = input("What is the assignment name: ")
+    # FIX 3: Strip input assignment name to ensure clean dictionary lookup
+    name = input("What is the assignment name: ").strip()
+
     if name not in assignments:
         print("Assignment not found")
         return
@@ -161,7 +175,9 @@ def option_assignment_stats(assignments, submissions):
 
 def option_assignment_graph(assignments, submissions):
     """Generates and displays a histogram of assignment scores."""
-    name = input("What is the assignment name: ")
+    # Strip input assignment name for consistency
+    name = input("What is the assignment name: ").strip()
+
     if name not in assignments:
         print("Assignment not found")
         return
@@ -186,9 +202,6 @@ def main():
     students = load_students()
     assignments = load_assignments()
     submissions = load_submissions()
-
-    # TEMPORARILY REMOVED CHECK to prevent silent failure if data is empty.
-    # The menu will now print even if data loading failed, but options 1-3 will show "Student/Assignment not found"
 
     print("1. Student grade")
     print("2. Assignment statistics")
