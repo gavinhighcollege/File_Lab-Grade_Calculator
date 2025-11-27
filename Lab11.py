@@ -4,42 +4,46 @@ import matplotlib.pyplot as plt
 DATA_DIR = "data"
 
 
+# ---------------------------------------------------------
+# LOAD STUDENTS
+# ---------------------------------------------------------
 def load_students():
     """
     Loads student IDs and names from students.txt.
-    Assumes a fixed-width format: [3-digit ID] immediately followed by the [Name].
+    Format example:
+    174Michael Potter
     """
     students = {}
     path = os.path.join(DATA_DIR, "students.txt")
+
     try:
         with open(path, 'r') as f:
             for line in f:
                 line = line.strip()
-                if not line:
+                if len(line) < 4:
                     continue
 
-                # FIX 1: Reverting to fixed-width parsing, as this structure is implied by the file errors.
-                if len(line) < 4: continue
-
-                # Get the first three characters (ID)
-                sid = line[:3].strip()
-                # Get the rest of the line (Name)
-                name = line[3:].strip()
-
-                if not name:
-                    continue
+                sid = line[:3]               # first 3 chars = ID
+                name = line[3:].strip()      # remainder = name
 
                 students[name] = sid
 
     except FileNotFoundError:
-        print(f"Error: {path} not found. Ensure 'data' directory is present.")
+        print("students.txt not found")
+
     return students
 
 
+# ---------------------------------------------------------
+# LOAD ASSIGNMENTS
+# ---------------------------------------------------------
 def load_assignments():
     """
-    Loads assignment names, points, and IDs from assignments.txt (3 lines per assignment).
-    Normalizes assignment names to Title Case for consistent lookup.
+    Loads assignment names, IDs, and points.
+    Each assignment is 3 lines:
+    Name
+    ID
+    Points
     """
     assignments = {}
     path = os.path.join(DATA_DIR, "assignments.txt")
@@ -50,34 +54,31 @@ def load_assignments():
 
         i = 0
         while i < len(lines):
-            if i + 2 >= len(lines):
-                break
-
-            name = lines[i].strip()
+            name = lines[i]
             aid = lines[i + 1]
-            pts_str = lines[i + 2]
+            pts = int(lines[i + 2])
 
-            try:
-                pts = int(pts_str)
-            except ValueError:
-                i += 3
-                continue
-
-            # FIX 2: Normalize the name to Title Case when storing in the dictionary
-            assignments[name.title()] = {
-                "points": pts,
-                "id": aid
+            assignments[name] = {
+                "id": aid,
+                "points": pts
             }
+
             i += 3
 
     except FileNotFoundError:
-        print(f"Error: {path} not found. Ensure 'data' directory is present.")
+        print("assignments.txt not found")
+
     return assignments
 
 
+# ---------------------------------------------------------
+# LOAD SUBMISSIONS
+# ---------------------------------------------------------
 def load_submissions():
     """
-    Loads all submission data from files in the 'data/submissions' directory.
+    Loads submission files.
+    Format inside each file:
+    SID|AID|PERCENT
     """
     submissions = []
     sub_dir = os.path.join(DATA_DIR, "submissions")
@@ -91,34 +92,30 @@ def load_submissions():
 
         full_path = os.path.join(sub_dir, filename)
 
-        try:
-            with open(full_path, "r") as f:
-                text = f.read().strip()
+        with open(full_path, 'r') as f:
+            text = f.read().strip()
+            if not text:
+                continue
 
-                if not text:
-                    continue
+            parts = text.split("|")
+            if len(parts) != 3:
+                continue
 
-                parts = text.split()
-                if len(parts) != 3:
-                    continue
+            sid, aid, perc = parts
 
-                sid, aid, perc_str = parts
-                try:
-                    submissions.append({
-                        "student_id": sid.strip(),
-                        "assignment_id": aid.strip(),
-                        "percent": float(perc_str.strip())
-                    })
-                except ValueError:
-                    continue
-        except IOError as e:
-            print(f"Error reading file {filename}: {e}")
+            submissions.append({
+                "student_id": sid.strip(),
+                "assignment_id": aid.strip(),
+                "percent": float(perc.strip())
+            })
 
     return submissions
 
 
+# ---------------------------------------------------------
+# OPTION 1: STUDENT GRADE
+# ---------------------------------------------------------
 def option_student_grade(students, assignments, submissions):
-    """Calculates and prints a student's final course grade."""
     name = input("What is the student's name: ").strip()
 
     if name not in students:
@@ -127,41 +124,35 @@ def option_student_grade(students, assignments, submissions):
 
     sid = students[name]
 
-    total_points_earned = 0
-    TOTAL_POSSIBLE_POINTS = 1000
+    TOTAL_POSSIBLE = 1000
+    total_earned = 0
 
-    assignment_points_lookup = {
-        adata["id"]: adata["points"]
-        for adata in assignments.values()
-    }
+    # lookup table: assignment_id → points
+    points_for_id = {adata["id"]: adata["points"] for adata in assignments.values()}
 
     for sub in submissions:
         if sub["student_id"] == sid:
             aid = sub["assignment_id"]
-            if aid in assignment_points_lookup:
-                pts_possible = assignment_points_lookup[aid]
-                pts_earned = pts_possible * (sub["percent"] / 100.0)
-                total_points_earned += pts_earned
+            if aid in points_for_id:
+                pts = points_for_id[aid]
+                earned = pts * (sub["percent"] / 100)
+                total_earned += earned
 
-    if TOTAL_POSSIBLE_POINTS > 0:
-        grade_percent = round((total_points_earned / TOTAL_POSSIBLE_POINTS) * 100)
-        print(f"{grade_percent}%")
-    else:
-        print("Error: Total possible points is zero.")
+    grade_percent = round((total_earned / TOTAL_POSSIBLE) * 100)
+    print(f"{grade_percent}%")
 
 
+# ---------------------------------------------------------
+# OPTION 2: ASSIGNMENT STATS
+# ---------------------------------------------------------
 def option_assignment_stats(assignments, submissions):
-    """Calculates and prints statistics (Min, Avg, Max) for an assignment."""
     name = input("What is the assignment name: ").strip()
 
-    # FIX 3: Normalize the user input name to Title Case for comparison
-    normalized_name = name.title()
-
-    if normalized_name not in assignments:
+    if name not in assignments:
         print("Assignment not found")
         return
 
-    aid = assignments[normalized_name]["id"]
+    aid = assignments[name]["id"]
 
     scores = [sub["percent"] for sub in submissions if sub["assignment_id"] == aid]
 
@@ -174,18 +165,17 @@ def option_assignment_stats(assignments, submissions):
     print(f"Max: {round(max(scores))}%")
 
 
+# ---------------------------------------------------------
+# OPTION 3: ASSIGNMENT HISTOGRAM
+# ---------------------------------------------------------
 def option_assignment_graph(assignments, submissions):
-    """Generates and displays a histogram of assignment scores."""
     name = input("What is the assignment name: ").strip()
 
-    # Normalize the user input name to Title Case for comparison
-    normalized_name = name.title()
-
-    if normalized_name not in assignments:
+    if name not in assignments:
         print("Assignment not found")
         return
 
-    aid = assignments[normalized_name]["id"]
+    aid = assignments[name]["id"]
 
     scores = [sub["percent"] for sub in submissions if sub["assignment_id"] == aid]
 
@@ -200,8 +190,10 @@ def option_assignment_graph(assignments, submissions):
     plt.show()
 
 
+# ---------------------------------------------------------
+# MAIN PROGRAM
+# ---------------------------------------------------------
 def main():
-    """Main function to load data and handle user menu selection."""
     students = load_students()
     assignments = load_assignments()
     submissions = load_submissions()
