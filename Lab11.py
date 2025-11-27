@@ -7,7 +7,7 @@ DATA_DIR = "data"
 def load_students():
     """
     Loads student IDs and names from students.txt.
-    Assumes file lines are formatted as: [3-digit ID] [Name] (space separated).
+    Assumes a fixed-width format: [3-digit ID] immediately followed by the [Name].
     """
     students = {}
     path = os.path.join(DATA_DIR, "students.txt")
@@ -18,15 +18,16 @@ def load_students():
                 if not line:
                     continue
 
-                # FIX 1: Use robust whitespace split to separate ID (first part) from Name (remaining parts).
-                parts = line.split()
+                # FIX 1: Reverting to fixed-width parsing, as this structure is implied by the file errors.
+                if len(line) < 4: continue
 
-                if len(parts) < 2:
+                # Get the first three characters (ID)
+                sid = line[:3].strip()
+                # Get the rest of the line (Name)
+                name = line[3:].strip()
+
+                if not name:
                     continue
-
-                sid = parts[0].strip()
-                # Join the rest of the parts back together to form the full name
-                name = " ".join(parts[1:]).strip()
 
                 students[name] = sid
 
@@ -37,8 +38,8 @@ def load_students():
 
 def load_assignments():
     """
-    Loads assignment data from assignments.txt.
-    (Previous fix for 3-line-per-assignment structure is kept, as it resolved the "malformed line" warnings).
+    Loads assignment names, points, and IDs from assignments.txt (3 lines per assignment).
+    Normalizes assignment names to Title Case for consistent lookup.
     """
     assignments = {}
     path = os.path.join(DATA_DIR, "assignments.txt")
@@ -52,7 +53,7 @@ def load_assignments():
             if i + 2 >= len(lines):
                 break
 
-            name = lines[i]
+            name = lines[i].strip()
             aid = lines[i + 1]
             pts_str = lines[i + 2]
 
@@ -62,7 +63,8 @@ def load_assignments():
                 i += 3
                 continue
 
-            assignments[name] = {
+            # FIX 2: Normalize the name to Title Case when storing in the dictionary
+            assignments[name.title()] = {
                 "points": pts,
                 "id": aid
             }
@@ -103,7 +105,6 @@ def load_submissions():
                 sid, aid, perc_str = parts
                 try:
                     submissions.append({
-                        # Ensure all IDs and percentage strings are clean
                         "student_id": sid.strip(),
                         "assignment_id": aid.strip(),
                         "percent": float(perc_str.strip())
@@ -118,7 +119,6 @@ def load_submissions():
 
 def option_student_grade(students, assignments, submissions):
     """Calculates and prints a student's final course grade."""
-    # FIX 2: Strip input name to ensure clean dictionary lookup
     name = input("What is the student's name: ").strip()
 
     if name not in students:
@@ -136,7 +136,6 @@ def option_student_grade(students, assignments, submissions):
     }
 
     for sub in submissions:
-        # ID comparison must now work because sid and sub["student_id"] are both cleaned strings.
         if sub["student_id"] == sid:
             aid = sub["assignment_id"]
             if aid in assignment_points_lookup:
@@ -153,14 +152,16 @@ def option_student_grade(students, assignments, submissions):
 
 def option_assignment_stats(assignments, submissions):
     """Calculates and prints statistics (Min, Avg, Max) for an assignment."""
-    # FIX 3: Strip input assignment name to ensure clean dictionary lookup
     name = input("What is the assignment name: ").strip()
 
-    if name not in assignments:
+    # FIX 3: Normalize the user input name to Title Case for comparison
+    normalized_name = name.title()
+
+    if normalized_name not in assignments:
         print("Assignment not found")
         return
 
-    aid = assignments[name]["id"]
+    aid = assignments[normalized_name]["id"]
 
     scores = [sub["percent"] for sub in submissions if sub["assignment_id"] == aid]
 
@@ -175,14 +176,16 @@ def option_assignment_stats(assignments, submissions):
 
 def option_assignment_graph(assignments, submissions):
     """Generates and displays a histogram of assignment scores."""
-    # Strip input assignment name for consistency
     name = input("What is the assignment name: ").strip()
 
-    if name not in assignments:
+    # Normalize the user input name to Title Case for comparison
+    normalized_name = name.title()
+
+    if normalized_name not in assignments:
         print("Assignment not found")
         return
 
-    aid = assignments[name]["id"]
+    aid = assignments[normalized_name]["id"]
 
     scores = [sub["percent"] for sub in submissions if sub["assignment_id"] == aid]
 
